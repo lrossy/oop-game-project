@@ -8,6 +8,7 @@ var MAX_ENEMIES = 3;
 
 var PLAYER_WIDTH = 75;
 var PLAYER_HEIGHT = 54;
+var PLAYER_LIVES = 3;
 
 // These two constants keep us from using "magic numbers" in our code
 var LEFT_ARROW_CODE = 37;
@@ -26,12 +27,17 @@ var images = {};
 });
 
 
-
+class Entity {
+    render(ctx) {
+        ctx.drawImage(this.sprite, this.x, this.y);
+    }
+}
 
 
 // This section is where you will be doing most of your coding
-class Enemy {
+class Enemy extends Entity {
     constructor(xPos) {
+        super();
         this.x = xPos;
         this.y = -ENEMY_HEIGHT;
         this.sprite = images['enemy.png'];
@@ -43,14 +49,12 @@ class Enemy {
     update(timeDiff) {
         this.y = this.y + timeDiff * this.speed;
     }
-
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
-    }
 }
 
-class Player {
+class Player extends Entity{
     constructor() {
+        super();
+        this.lives = PLAYER_LIVES;
         this.x = 2 * PLAYER_WIDTH;
         this.y = GAME_HEIGHT - PLAYER_HEIGHT - 10;
         this.sprite = images['player.png'];
@@ -61,19 +65,18 @@ class Player {
         if (direction === MOVE_LEFT && this.x > 0) {
             this.x = this.x - PLAYER_WIDTH;
         }
+
         else if (direction === MOVE_RIGHT && this.x < GAME_WIDTH - PLAYER_WIDTH) {
             this.x = this.x + PLAYER_WIDTH;
         }
+        // alert('this.x: ' +this.x);
     }
-
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
+    lostLife(){
+        if(this.lives > 0){
+            this.lives--;
+        }
     }
 }
-
-
-
-
 
 /*
 This section is a tiny game engine.
@@ -100,6 +103,16 @@ class Engine {
         this.gameLoop = this.gameLoop.bind(this);
     }
 
+    new() {
+        //reset things
+        this.player.lostLife();
+        this.enemies = [];
+
+        this.score = 0;
+        this.lastFrame = Date.now();
+
+        this.gameLoop();
+    }
     /*
      The game allows for 5 horizontal slots where an enemy can be present.
      At any point in time there can be at most MAX_ENEMIES enemies otherwise the game would be impossible
@@ -119,12 +132,17 @@ class Engine {
         var enemySpots = GAME_WIDTH / ENEMY_WIDTH;
 
         var enemySpot;
+
+
         // Keep looping until we find a free enemy spot at random
-        while (!enemySpot || this.enemies[enemySpot]) {
+        while (typeof enemySpot === undefined || this.enemies[enemySpot]) {
+
             enemySpot = Math.floor(Math.random() * enemySpots);
         }
 
         this.enemies[enemySpot] = new Enemy(enemySpot * ENEMY_WIDTH);
+        //alert(JSON.stringify(this.enemies));
+
     }
 
     // This method kicks off the game
@@ -178,13 +196,25 @@ class Engine {
             }
         });
         this.setupEnemies();
+        this.ctx.fillText(this.player.lives + ' Lives', 275, 30);
 
         // Check if player is dead
         if (this.isPlayerDead()) {
             // If they are dead, then it's game over!
             this.ctx.font = 'bold 30px Impact';
             this.ctx.fillStyle = '#ffffff';
-            this.ctx.fillText(this.score + ' GAME OVER', 5, 30);
+
+            if(this.player.lives > 0){
+                this.ctx.fillText('Starting a new match ...', 5, 150);
+
+                setTimeout(()=>{
+                    gameEngine.new();
+                },2000);
+            }
+            else{
+                this.ctx.fillText(this.score + ' GAME OVER', 5, 30);
+            }
+
         }
         else {
             // If player is not dead, then draw the score
@@ -200,7 +230,21 @@ class Engine {
 
     isPlayerDead() {
         // TODO: fix this function!
-        return false;
+        // foreach enemy, if there x is the same as the player, then check if the y is a collision or not.
+        var collision = false;
+        this.enemies.forEach((enemy, enemyIdx) => {
+
+            if(enemy.x === this.player.x){
+               // they are on the same line, check if y is colliding
+                if((enemy.y+ENEMY_HEIGHT) >= this.player.y){
+                // if(enemy.y >= this.player.y){
+                    collision = true;
+                    // alert('You crashed!: ' + (enemy.y+ENEMY_HEIGHT) + 'enemy.y:' + enemy.y +  'this.player.y: ' + this.player.y +  'this.player.y: ' + (this.player.y -PLAYER_HEIGHT))
+                }
+            }
+        });
+
+        return collision;
     }
 }
 
