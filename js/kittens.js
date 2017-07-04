@@ -10,17 +10,28 @@ var PLAYER_WIDTH = 75;
 var PLAYER_HEIGHT = 54;
 var PLAYER_LIVES = 3;
 
+var LASER_HEIGHT  = 75;
+var LASER_WIDTH = 75;
+
 // These two constants keep us from using "magic numbers" in our code
 var LEFT_ARROW_CODE = 37;
 var RIGHT_ARROW_CODE = 39;
+var UP_ARROW_CODE = 38;
+var DOWN_ARROW_CODE = 40;
+var SPACE_BAR_CODE = 32;
+var KEYCODE_ENTER = 13;
 
 // These two constants allow us to DRY
 var MOVE_LEFT = 'left';
 var MOVE_RIGHT = 'right';
+var MOVE_UP    = 'up';
+var MOVE_DOWN = 'down';
+
+var MAX_LASERS = 2;
 
 // Preload game images
 var images = {};
-['enemy.png', 'stars.png', 'player.png'].forEach(imgName => {
+['enemy.png', 'stars.png', 'player.png', 'laser.png'].forEach(imgName => {
     var img = document.createElement('img');
     img.src = 'images/' + imgName;
     images[imgName] = img;
@@ -31,6 +42,15 @@ class Entity {
     render(ctx) {
         ctx.drawImage(this.sprite, this.x, this.y);
     }
+    update(timeDiff, direction) {
+        if (direction === 'down')  {
+            this.y = this.y + timeDiff * this.speed;
+        }
+        else {
+            this.y = this.y - timeDiff * this.speed;
+        }
+    }
+
 }
 
 
@@ -45,9 +65,19 @@ class Enemy extends Entity {
         // Each enemy should have a different speed
         this.speed = Math.random() / 2 + 0.25;
     }
+}
 
-    update(timeDiff) {
-        this.y = this.y + timeDiff * this.speed;
+class Laser extends Entity {
+    constructor(xPos, yPos) {
+        super();
+        this.x = xPos;
+        this.y = yPos;
+        this.sprite = images['laser.png'];
+
+        console.log('laser', xPos, yPos)
+        this.height = LASER_HEIGHT;
+        this.width = LASER_WIDTH;
+        this.speed = 0.5;
     }
 }
 
@@ -69,12 +99,31 @@ class Player extends Entity{
         else if (direction === MOVE_RIGHT && this.x < GAME_WIDTH - PLAYER_WIDTH) {
             this.x = this.x + PLAYER_WIDTH;
         }
+        else if (direction === MOVE_UP &&  this.y > PLAYER_HEIGHT) {
+            this.y = this.y - PLAYER_HEIGHT;
+        }
+        else if (direction === MOVE_DOWN && this.y < GAME_HEIGHT  - (PLAYER_HEIGHT + 10)) {
+
+            this.y = this.y + PLAYER_HEIGHT;
+        }
         // alert('this.x: ' +this.x);
     }
     lostLife(){
         if(this.lives > 0){
             this.lives--;
         }
+    }
+    shoot() {
+        if (!this.lasers) {
+            this.lasers = [];
+        }
+
+        //while (canShoot) {
+        if (this.lasers.length < MAX_LASERS) {
+            var laser = new Laser(this.x, this.y-PLAYER_HEIGHT);
+            this.lasers.push(laser);
+        }
+        //}
     }
 }
 
@@ -107,7 +156,8 @@ class Engine {
         //reset things
         this.player.lostLife();
         this.enemies = [];
-
+        this.player.x = 2 * PLAYER_WIDTH;
+        this.player.y = GAME_HEIGHT - PLAYER_HEIGHT - 10;
         this.score = 0;
         this.lastFrame = Date.now();
 
@@ -132,14 +182,21 @@ class Engine {
         var enemySpots = GAME_WIDTH / ENEMY_WIDTH;
 
         var enemySpot;
+        var test = undefined;
 
-
+        // if(!enemySpot && this.enemies[enemySpot]){
+        //     alert(JSON.stringify(this.enemies[enemySpot]));
+        // }
         // Keep looping until we find a free enemy spot at random
-        while (typeof enemySpot === undefined || this.enemies[enemySpot]) {
+
+        while (enemySpot===undefined || this.enemies[enemySpot] ) {
+            // alert(JSON.stringify(this.enemies[enemySpot]));
 
             enemySpot = Math.floor(Math.random() * enemySpots);
-        }
+            // alert(enemySpot);
 
+        }
+        // alert(typeof this.enemies[enemySpot])
         this.enemies[enemySpot] = new Enemy(enemySpot * ENEMY_WIDTH);
         //alert(JSON.stringify(this.enemies));
 
@@ -150,13 +207,29 @@ class Engine {
         this.score = 0;
         this.lastFrame = Date.now();
 
+        this.player = new Player();
+        this.enemies = [];
+        var that = this;
         // Listen for keyboard left/right and update the player
         document.addEventListener('keydown', e => {
+            if (e.keyCode === KEYCODE_ENTER && this.player.lives < 1){
+                this.start()
+           }
+
             if (e.keyCode === LEFT_ARROW_CODE) {
                 this.player.move(MOVE_LEFT);
             }
             else if (e.keyCode === RIGHT_ARROW_CODE) {
                 this.player.move(MOVE_RIGHT);
+            }
+            else if (e.keyCode === UP_ARROW_CODE) {
+                this.player.move(MOVE_UP);
+            }
+            else if (e.keyCode === DOWN_ARROW_CODE) {
+                this.player.move(MOVE_DOWN);
+            }
+            else if (e.keyCode === SPACE_BAR_CODE) {
+                this.player.shoot();
             }
         });
 
@@ -182,11 +255,25 @@ class Engine {
         this.score += timeDiff;
 
         // Call update on all enemies
-        this.enemies.forEach(enemy => enemy.update(timeDiff));
+        this.enemies.forEach(enemy => enemy.update(timeDiff, 'down'));
 
         // Draw everything!
         this.ctx.drawImage(images['stars.png'], 0, 0); // draw the star bg
         this.enemies.forEach(enemy => enemy.render(this.ctx)); // draw the enemies
+
+        if(this.player.lasers){
+
+            this.player.lasers.forEach( (laser, laserIdx) => {
+                laser.update(timeDiff, 'up');
+                laser.render(this.ctx);
+                if (laser.y <= 0) {
+                    this.player.lasers.splice(laserIdx, 1);
+                }
+            })
+
+        }
+
+
         this.player.render(this.ctx); // draw the player
 
         // Check if any enemies should die
@@ -195,6 +282,8 @@ class Engine {
                 delete this.enemies[enemyIdx];
             }
         });
+
+
         this.setupEnemies();
         this.ctx.fillText(this.player.lives + ' Lives', 275, 30);
 
@@ -213,6 +302,8 @@ class Engine {
             }
             else{
                 this.ctx.fillText(this.score + ' GAME OVER', 5, 30);
+                this.ctx.fillText('Press ENTER to start again', 5, 150);
+
             }
 
         }
@@ -235,18 +326,22 @@ class Engine {
         this.enemies.forEach((enemy, enemyIdx) => {
 
             if(enemy.x === this.player.x){
-               // they are on the same line, check if y is colliding
-                if((enemy.y+ENEMY_HEIGHT) >= this.player.y){
-                // if(enemy.y >= this.player.y){
+                if(this.between(this.player.y,  enemy.y, enemy.y+ENEMY_HEIGHT) || this.between(this.player.y,  enemy.y, enemy.y+ENEMY_HEIGHT)) {
                     collision = true;
-                    // alert('You crashed!: ' + (enemy.y+ENEMY_HEIGHT) + 'enemy.y:' + enemy.y +  'this.player.y: ' + this.player.y +  'this.player.y: ' + (this.player.y -PLAYER_HEIGHT))
+                    // alert('You crashed!: ' + (enemy.y+ENEMY_HEIGHT) + 'enemy.y:' + enemy.y +  'this.player.y: ' + this.player.y +  'this.player.y: ' + (this.player.y +PLAYER_HEIGHT))
                 }
             }
         });
 
         return collision;
     }
+
+    between(x, min, max){
+        return x >= min && x <= max;
+    }
 }
+
+
 
 
 
