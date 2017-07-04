@@ -27,7 +27,7 @@ var MOVE_RIGHT = 'right';
 var MOVE_UP    = 'up';
 var MOVE_DOWN = 'down';
 
-var MAX_LASERS = 2;
+var MAX_LASERS = 3;
 
 // Preload game images
 var images = {};
@@ -273,7 +273,6 @@ class Engine {
 
         }
 
-
         this.player.render(this.ctx); // draw the player
 
         // Check if any enemies should die
@@ -287,6 +286,7 @@ class Engine {
         this.setupEnemies();
         this.ctx.fillText(this.player.lives + ' Lives', 275, 30);
 
+        this.isEnemyDead();
         // Check if player is dead
         if (this.isPlayerDead()) {
             // If they are dead, then it's game over!
@@ -326,7 +326,7 @@ class Engine {
         this.enemies.forEach((enemy, enemyIdx) => {
 
             if(enemy.x === this.player.x){
-                if(this.between(this.player.y,  enemy.y, enemy.y+ENEMY_HEIGHT) || this.between(this.player.y,  enemy.y, enemy.y+ENEMY_HEIGHT)) {
+                if(this.collision(enemy, this.player)) {
                     collision = true;
                     // alert('You crashed!: ' + (enemy.y+ENEMY_HEIGHT) + 'enemy.y:' + enemy.y +  'this.player.y: ' + this.player.y +  'this.player.y: ' + (this.player.y +PLAYER_HEIGHT))
                 }
@@ -336,6 +336,40 @@ class Engine {
         return collision;
     }
 
+    isEnemyDead() {
+        // foreach laser, if there x is the same as the enemy, then check if the y is a collision or not.
+        var collision = false;
+        this.enemies.forEach((enemy, enemyIdx) => {
+            // console.log('Checking enemy ', enemyIdx);
+
+            if(this.player.lasers) {
+                this.player.lasers.forEach((laser, laserIdx) => {
+                    //check if laser is colliding with enemy
+                    // console.log('this.player.lasers.y', laser.y);
+                    // console.log('enemy.y', enemy.y);
+                    // console.log('enemy.y+ENEMY_HEIGHT', enemy.y+ENEMY_HEIGHT);
+                    if(enemy.x === laser.x) {
+                        if(this.collision(enemy, laser)) {
+                            collision = true;
+                            delete this.enemies[enemyIdx];
+                            this.player.lasers.splice(laserIdx, 1);
+                            this.score += 1000;
+                        }
+                    }
+                });
+            }
+
+        });
+
+        return collision;
+    }
+    collision(obj1, obj2){
+        var collision = false;
+        if(this.between(obj2.y,  obj1.y, obj1.y+ENEMY_HEIGHT) || this.between(obj2.y,  obj1.y, obj1.y+ENEMY_HEIGHT)) {
+            collision = true;
+        }
+        return collision;
+    }
     between(x, min, max){
         return x >= min && x <= max;
     }
