@@ -92,10 +92,10 @@ class Player extends Entity{
 
     // This method is called by the game engine when left/right arrows are pressed
     move(direction) {
+      console.log(`move ${PLAYER_WIDTH} x: ${this.x}`);
         if (direction === MOVE_LEFT && this.x > 0) {
             this.x = this.x - PLAYER_WIDTH;
         }
-
         else if (direction === MOVE_RIGHT && this.x < GAME_WIDTH - PLAYER_WIDTH) {
             this.x = this.x + PLAYER_WIDTH;
         }
@@ -103,7 +103,6 @@ class Player extends Entity{
             this.y = this.y - PLAYER_HEIGHT;
         }
         else if (direction === MOVE_DOWN && this.y < GAME_HEIGHT  - (PLAYER_HEIGHT + 10)) {
-
             this.y = this.y + PLAYER_HEIGHT;
         }
         // alert('this.x: ' +this.x);
@@ -203,7 +202,7 @@ class Engine {
     }
 
     // This method kicks off the game
-    start() {
+    start(replay) {
         this.score = 0;
         this.lastFrame = Date.now();
 
@@ -211,27 +210,29 @@ class Engine {
         this.enemies = [];
         var that = this;
         // Listen for keyboard left/right and update the player
-        document.addEventListener('keydown', e => {
+        if(!replay){
+          document.addEventListener('keydown', e => {
             if (e.keyCode === KEYCODE_ENTER && this.player.lives < 1){
-                this.start()
-           }
+              this.start(true)
+            }
 
             if (e.keyCode === LEFT_ARROW_CODE) {
-                this.player.move(MOVE_LEFT);
+              this.player.move(MOVE_LEFT);
             }
             else if (e.keyCode === RIGHT_ARROW_CODE) {
-                this.player.move(MOVE_RIGHT);
+              this.player.move(MOVE_RIGHT);
             }
             else if (e.keyCode === UP_ARROW_CODE) {
-                this.player.move(MOVE_UP);
+              this.player.move(MOVE_UP);
             }
             else if (e.keyCode === DOWN_ARROW_CODE) {
-                this.player.move(MOVE_DOWN);
+              this.player.move(MOVE_DOWN);
             }
             else if (e.keyCode === SPACE_BAR_CODE) {
-                this.player.shoot();
+              this.player.shoot();
             }
-        });
+          });
+        }
 
         this.gameLoop();
     }
